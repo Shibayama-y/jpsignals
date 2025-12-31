@@ -7,6 +7,7 @@ COLUMNS = ["Open", "High", "Low", "Close", "Volume"]
 
 
 def fetch_single_day(tickers: list[str], date: str, auto_adjust: bool = False) -> pd.DataFrame:
+    """Download one trading day's OHLCV for given tickers (expects .T suffix)."""
     start = pd.to_datetime(date)
     end = start + pd.Timedelta(days=1)
 
@@ -42,6 +43,7 @@ def fetch_single_day(tickers: list[str], date: str, auto_adjust: bool = False) -
 
 
 def main():
+    """CLI entrypoint: fetch OHLCV for one or more tickers on a given date."""
     parser = argparse.ArgumentParser(
         description="Fetch one trading day's data for one or more Japanese stocks via yfinance.",
     )

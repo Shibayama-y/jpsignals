@@ -23,6 +23,7 @@ HEADERS = {
 
 
 def _flatten_columns(df: pd.DataFrame) -> list[str]:
+    """Normalize DataFrame columns to plain strings (flatten MultiIndex)."""
     if isinstance(df.columns, pd.MultiIndex):
         return [" ".join([str(x) for x in tup if str(x) != "nan"]).strip() for tup in df.columns]
     return [str(c) for c in df.columns]
@@ -51,6 +52,7 @@ def _ensure_headers(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def resolve_listing_url(pages: Iterable[str]) -> str:
+    """Find the latest JPX listing Excel link from known pages or fallbacks."""
     pattern = re.compile(r"href=\"(?P<href>[^\"]*data_j\\.(?:xls|xlsx))\"", re.IGNORECASE)
     for page in pages:
         try:
@@ -84,6 +86,7 @@ def _extract_src_if_office_viewer(url: str) -> str:
 
 
 def read_listing(url: str) -> pd.DataFrame:
+    """Download and read the JPX listing Excel (xls/xlsx)."""
     url = _extract_src_if_office_viewer(url)
     try:
         resp = requests.get(url, headers=HEADERS, timeout=60)
@@ -101,6 +104,7 @@ def read_listing(url: str) -> pd.DataFrame:
 
 
 def fetch_jpx_list(pages: Iterable[str]) -> pd.DataFrame:
+    """Resolve listing URL, load Excel, filter out ETF/ETN, and return Code/Name/Ticker."""
     url = resolve_listing_url(pages)
     df_raw = _ensure_headers(read_listing(url))
     if not {"コード", "銘柄名"}.issubset(df_raw.columns):
@@ -128,6 +132,7 @@ def fetch_jpx_list(pages: Iterable[str]) -> pd.DataFrame:
 
 
 def main():
+    """CLI entrypoint: fetch JPX listings and emit CSV to stdout or file."""
     parser = argparse.ArgumentParser(
         description=(
             "Download JPX stock listings (code/name) and emit as CSV with yfinance tickers (.T suffix)."
