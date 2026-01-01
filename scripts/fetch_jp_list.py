@@ -127,8 +127,14 @@ def fetch_jpx_list(pages: Iterable[str]) -> pd.DataFrame:
     df = df.rename(columns={"コード": "Code", "銘柄名": "Name"})
     codes = df["Code"].astype(str).str.extract(r"(\d+)")[0].fillna("")
     df["Code"] = codes.str.zfill(4)
+
+    # JPXのリストに紛れ込む先頭0のコードなどを除外（yfinanceで引けないため）
+    valid_mask = df["Code"].str.match(r"^[1-9]\d{3}$")
+    df = df[valid_mask]
+
+    df = df.drop_duplicates(subset="Code", keep="first")
     df["Ticker"] = df["Code"].astype(str) + ".T"
-    return df[COLUMNS]
+    return df[COLUMNS].reset_index(drop=True)
 
 
 def main():
