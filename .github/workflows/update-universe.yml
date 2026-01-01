@@ -36,13 +36,15 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          NO_CHANGE_MSG="No changes to commit."
           echo "Diff summary:"
           git diff --stat -- data/universe.txt
           echo "Full diff:"
           git diff -- data/universe.txt
 
           if git diff --quiet -- data/universe.txt; then
-            echo "No changes to commit."
+            echo "$NO_CHANGE_MSG"
+            echo "$NO_CHANGE_MSG" >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
 
