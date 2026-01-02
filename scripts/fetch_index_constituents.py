@@ -9,6 +9,12 @@ import pandas as pd
 import requests
 from pypdf import PdfReader
 
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from scripts.fetch_jp_list import DEFAULT_PAGES as JPX_PAGES, fetch_jpx_list  # noqa: E402
+
 USER_AGENT = "Mozilla/5.0 (compatible; JPIndexFetcher/1.0; +https://indexes.nikkei.co.jp/)"
 DEFAULT_TIMEOUT = 30
 COLUMNS = ["Index", "Code", "Name", "Ticker"]
@@ -126,6 +132,25 @@ def _extract_components_from_pdf_bytes(data: bytes, index_label: str) -> pd.Data
     return df[COLUMNS].reset_index(drop=True)
 
 
+def enrich_with_jpx_listing(df: pd.DataFrame, pages: Iterable[str]) -> pd.DataFrame:
+    """Replace names/tickers using JPX master (Japanese names)."""
+    try:
+        jpx = fetch_jpx_list(pages)
+    except Exception as exc:  # pragma: no cover - network errors
+        print(f"Warning: JPX listing fetch failed; keeping original names. ({exc})", file=sys.stderr)
+        return df
+
+    name_map = jpx.set_index("Code")["Name"].to_dict()
+    ticker_map = jpx.set_index("Code")["Ticker"].to_dict()
+    if not name_map:
+        return df
+
+    df = df.copy()
+    df["Name"] = df["Code"].map(name_map).fillna(df["Name"])
+    df["Ticker"] = df["Code"].map(ticker_map).fillna(df["Ticker"])
+    return df
+
+
 def fetch_index(index_key: str, cookies: dict[str, str] | None, timeout: int) -> pd.DataFrame:
     urls = INDEX_SOURCES.get(index_key)
     if not urls:
@@ -179,6 +204,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="If set, writes per-index CSVs into this directory (nikkei225.csv, jpx_nikkei400.csv).",
     )
     parser.add_argument(
+        "--universe-output",
+        type=Path,
+        help="Optional path to write Code/Name/Ticker only (same format as data/universe.txt).",
+    )
+    parser.add_argument(
         "--cookie",
         action="append",
         help="Cookie in key=value format (repeatable). Useful if the site returns 403.",
@@ -208,7 +238,6 @@ def main(argv: list[str] | None = None) -> int:
 
     targets = ["nikkei225", "jpx_nikkei400"] if args.index == "both" else [args.index]
     frames: list[pd.DataFrame] = []
-    per_index: dict[str, pd.DataFrame] = {}
     local_files = {
         "nikkei225": args.nikkei225_file,
         "jpx_nikkei400": args.jpx_nikkei400_file,
@@ -222,16 +251,26 @@ def main(argv: list[str] | None = None) -> int:
         else:
             print(f"Fetching {idx}...", file=sys.stderr)
             df = fetch_index(idx, cookies=cookies, timeout=args.timeout)
-        per_index[idx] = df
         frames.append(df)
 
     combined = pd.concat(frames, ignore_index=True)
+    combined = enrich_with_jpx_listing(combined, pages=JPX_PAGES)
 
     if args.output_dir:
         outdir = Path(args.output_dir)
         outdir.mkdir(parents=True, exist_ok=True)
-        for key, df in per_index.items():
+        for key in targets:
+            df = combined[combined["Index"] == key]
             df.to_csv(outdir / f"{key}.csv", index=False)
+
+    if args.universe_output:
+        uni_path = Path(args.universe_output)
+        uni_path.parent.mkdir(parents=True, exist_ok=True)
+        header = "# Code,Name,Ticker\n"
+        data = combined[["Code", "Name", "Ticker"]].drop_duplicates(subset="Code")
+        with open(uni_path, "w", encoding="utf-8", newline="") as fh:
+            fh.write(header)
+            data.to_csv(fh, index=False, header=False)
 
     header_line = "# " + ",".join(COLUMNS)
     if args.output:

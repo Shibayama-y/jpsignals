@@ -24,10 +24,12 @@ Nikkei公式の構成銘柄CSVをダウンロードし、インデックス名�
 python scripts/fetch_index_constituents.py               # 両指数を標準出力へ
 python scripts/fetch_index_constituents.py --index nikkei225 -o data/nikkei225.csv
 python scripts/fetch_index_constituents.py --output-dir data  # data/nikkei225.csv と data/jpx_nikkei400.csv を書き込み
+# universe 形式のコード一覧を出力（Index列なし）
+python scripts/fetch_index_constituents.py --universe-output data/universe.txt
 ```
 - サイトから 403 が返った場合は `--cookie cf_clearance=<値>` のようにブラウザで取得した Cookie を渡せます（複数指定可）。
 - ブラウザから CSV/PDF を手動ダウンロードした場合は `--nikkei225-file <path>` や `--jpx-nikkei400-file <path>` でローカルファイルを読み込めます（PDF は銘柄コード/名称を抽出して処理）。
-- 出力 CSV は `# Index,Code,Name,Ticker` ヘッダー行の後にデータを流し込みます。
+- 出力 CSV は `# Index,Code,Name,Ticker` ヘッダー行の後にデータを流し込みます。企業名は JPX 銘柄リストから日本語で補完します（取得に失敗した場合はダウンロード元の名称を使用）。
 
 ### 指定日の株価を取得（複数銘柄対応）
 
