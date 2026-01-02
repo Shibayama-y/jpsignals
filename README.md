@@ -16,6 +16,19 @@ python scripts/fetch_jp_list.py > jpx_list.csv
 - 保存先を指定: `python scripts/fetch_jp_list.py -o data/jpx_list.csv`
 - JPXページのURLが変わった場合は `--page <URL>` を複数指定して上書きできます。
 
+### JPX-Nikkei 400 / Nikkei 225 の構成銘柄を取得
+
+Nikkei公式の構成銘柄CSVをダウンロードし、インデックス名付きで CSV 出力します。
+
+```bash
+python scripts/fetch_index_constituents.py               # 両指数を標準出力へ
+python scripts/fetch_index_constituents.py --index nikkei225 -o data/nikkei225.csv
+python scripts/fetch_index_constituents.py --output-dir data  # data/nikkei225.csv と data/jpx_nikkei400.csv を書き込み
+```
+- サイトから 403 が返った場合は `--cookie cf_clearance=<値>` のようにブラウザで取得した Cookie を渡せます（複数指定可）。
+- ブラウザから CSV/PDF を手動ダウンロードした場合は `--nikkei225-file <path>` や `--jpx-nikkei400-file <path>` でローカルファイルを読み込めます（PDF は銘柄コード/名称を抽出して処理）。
+- 出力 CSV は `# Index,Code,Name,Ticker` ヘッダー行の後にデータを流し込みます。
+
 ### 指定日の株価を取得（複数銘柄対応）
 
 ```bash

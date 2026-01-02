@@ -1,0 +1,7 @@
+pandas
+yfinance
+numpy
+requests
+xlrd
+openpyxl
+pypdf
