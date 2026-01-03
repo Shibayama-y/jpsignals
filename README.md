@@ -47,3 +47,38 @@ python scripts/fetch_jp_stock.py 7203.T 9984.T -d 2024-01-05 --auto-adjust
 - 東証銘柄は末尾に `.T` を付けて指定してください。
 - 取得日は取引所ローカル時間 (Asia/Tokyo) の YYYY-MM-DD で入力します。
 - 非営業日や誤ったティッカーは標準エラーに警告を出し、すべて取得できなければ終了します。
+
+### デイリーパイプライン（ポジション更新 + レポート生成）
+
+`scripts/daily_technical.py` が出力する `out/daily.jsonl` を入力に、保有状態を更新しメール本文を作成します。
+
+1. ポジション/レジャー更新とイベント要約（冪等、同日再実行はスキップ）
+```bash
+python scripts/update_positions.py \
+  --asof 2026-01-04 \
+  --signals out/daily.jsonl \
+  --positions data/state/positions.json \
+  --ledger-dir data/state/ledger \
+  --events-out data/runs/daily/2026-01-04.events.json \
+  --default-qty 200 \
+  --run-url "https://github.com/owner/repo/actions/runs/123"
+```
+
+2. 企業名解決＋Markdownメール生成（signalsのコピーとcompany cache更新を伴う）
+```bash
+python scripts/build_daily_report.py \
+  --asof 2026-01-04 \
+  --signals out/daily.jsonl \
+  --events data/runs/daily/2026-01-04.events.json \
+  --positions data/state/positions.json \
+  --company-cache data/master/company_names.json \
+  --report-out data/reports/daily/2026-01-04.md \
+  --run-out data/runs/daily/2026-01-04.jsonl \
+  --status success \
+  --run-url "https://github.com/owner/repo/actions/runs/123"
+```
+
+3. 古い daily の削除（任意）
+```bash
+python scripts/prune_data.py --keep-days 90
+```

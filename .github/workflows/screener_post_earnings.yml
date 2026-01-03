@@ -1,0 +1,30 @@
+name: Screener Post Earnings
+
+on:
+  schedule:
+    - cron: "0 10 * * MON-FRI"  # 19:00 JST weekdays
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  post-earnings-refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Refresh fundamentals for recent earnings
+        run: |
+          python scripts/post_earnings_refresh.py --watchlist-file data/watchlist.txt --outdir out
