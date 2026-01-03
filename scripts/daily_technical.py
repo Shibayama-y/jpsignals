@@ -80,6 +80,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             "entry_ok": rec["entry_ok"],
             "regime_ok": rec["regime_ok"],
             "setup_ok": rec["setup_ok"],
+            "signal_entry": rec["signal_entry"],
+            "exit": rec["exit"],
             "metrics": rec.get("metrics", {}),
             "passed_rules": rec.get("passed_rules", []),
             "failed_rules": rec.get("failed_rules", []),

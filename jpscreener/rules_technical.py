@@ -15,6 +15,7 @@ def evaluate_technical(metrics: Dict[str, float]) -> Dict[str, object]:
     high20 = metrics.get("high20", np.nan)
     low20 = metrics.get("low20", np.nan)
     prev20_high = metrics.get("prev20_high", np.nan)
+    prev10_low = metrics.get("prev10_low", np.nan)
 
     if np.isnan(price):
         missing.append("Close")
@@ -30,6 +31,8 @@ def evaluate_technical(metrics: Dict[str, float]) -> Dict[str, object]:
         missing.append("Low20")
     if np.isnan(prev20_high):
         missing.append("Prev20High")
+    if np.isnan(prev10_low):
+        missing.append("Prev10Low")
 
     def eval_rule(name: str, condition: bool | None):
         if condition is None:
@@ -43,6 +46,7 @@ def evaluate_technical(metrics: Dict[str, float]) -> Dict[str, object]:
     close_gt_ma200 = price > ma200 if not np.isnan(price) and not np.isnan(ma200) else None
     entry_rule = price > prev20_high if not np.isnan(price) and not np.isnan(prev20_high) else None
     ma50_gt_ma200 = ma50 > ma200 if not np.isnan(ma50) and not np.isnan(ma200) else None
+    exit_rule = price < prev10_low if not np.isnan(price) and not np.isnan(prev10_low) else None
 
     eval_rule("Close>MA20", close_gt_ma20)
     eval_rule("Close>MA50", close_gt_ma50)
@@ -51,10 +55,13 @@ def evaluate_technical(metrics: Dict[str, float]) -> Dict[str, object]:
     eval_rule("Close>MA200", close_gt_ma200)
     eval_rule("MA50>MA200", ma50_gt_ma200)
     eval_rule("Close>Prev20High", entry_rule)
+    eval_rule("Close<Prev10Low", exit_rule)
 
     regime_ok = bool(close_gt_ma200 and ma50_gt_ma200)
     setup_ok = bool(close_gt_ma20 and near20_high and above20_low)
     entry_ok = bool(entry_rule)
+    exit_ok = bool(exit_rule)
+    signal_entry = bool(entry_ok and regime_ok and setup_ok)
     return {
         "passed": passed,
         "failed": failed,
@@ -62,4 +69,6 @@ def evaluate_technical(metrics: Dict[str, float]) -> Dict[str, object]:
         "regime_ok": regime_ok,
         "setup_ok": setup_ok,
         "entry_ok": entry_ok,
+        "signal_entry": signal_entry,
+        "exit": exit_ok,
     }

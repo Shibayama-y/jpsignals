@@ -46,11 +46,22 @@ def previous_high(df: pd.DataFrame, window: int = 20) -> float:
     return float(window_slice.max())
 
 
+def previous_low(df: pd.DataFrame, window: int = 10) -> float:
+    """Lowest low over the previous `window` periods, excluding the latest row."""
+    if df is None or df.empty or len(df) <= window:
+        return np.nan
+    window_slice = df["Low"].iloc[-(window + 1) : -1]
+    if window_slice.empty:
+        return np.nan
+    return float(window_slice.min())
+
+
 def build_technical_record(ticker: str, df: pd.DataFrame) -> Dict[str, object]:
     ma = moving_averages(df, [20, 50, 200])
     close = latest_close(df)
     hl = recent_high_low(df, 20)
     prev_high = previous_high(df, 20)
+    prev_low = previous_low(df, 10)
     metrics = {
         "close": close,
         "ma20": ma.get(20, np.nan),
@@ -59,6 +70,7 @@ def build_technical_record(ticker: str, df: pd.DataFrame) -> Dict[str, object]:
         "high20": hl["high"],
         "low20": hl["low"],
         "prev20_high": prev_high,
+        "prev10_low": prev_low,
     }
     rule = evaluate_technical(metrics)
     return {
@@ -70,4 +82,6 @@ def build_technical_record(ticker: str, df: pd.DataFrame) -> Dict[str, object]:
         "entry_ok": rule["entry_ok"],
         "regime_ok": rule["regime_ok"],
         "setup_ok": rule["setup_ok"],
+        "signal_entry": rule["signal_entry"],
+        "exit": rule["exit"],
     }
