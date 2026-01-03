@@ -159,10 +159,14 @@ def main():
     pages = args.page if args.page else DEFAULT_PAGES
     df = fetch_jpx_list(pages)
 
+    header_line = "# " + ",".join(COLUMNS)
     if args.output:
-        df.to_csv(args.output, index=False, encoding="utf-8")
+        with open(args.output, "w", encoding="utf-8", newline="") as fh:
+            fh.write(header_line + "\n")
+            df.to_csv(fh, index=False, header=False)
     else:
-        df.to_csv(sys.stdout, index=False)
+        sys.stdout.write(header_line + "\n")
+        df.to_csv(sys.stdout, index=False, header=False)
 
 
 if __name__ == "__main__":

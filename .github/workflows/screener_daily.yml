@@ -1,0 +1,115 @@
+name: Screener Daily
+
+on:
+  schedule:
+    - cron: "0 11 * * MON-FRI"  # 20:00 JST weekdays
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  daily:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Compute variables
+        id: vars
+        run: |
+          ASOF=$(TZ=Asia/Tokyo date +%Y-%m-%d)
+          echo "asof=$ASOF" >> $GITHUB_OUTPUT
+          echo "run_url=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" >> $GITHUB_OUTPUT
+
+      - name: Run daily technical screening
+        id: daily
+        continue-on-error: true
+        run: |
+          python scripts/daily_technical.py --watchlist-file data/watchlist.txt --outdir out
+
+      - name: Update positions and ledger
+        id: update
+        continue-on-error: true
+        run: |
+          python scripts/update_positions.py \
+            --asof "${{ steps.vars.outputs.asof }}" \
+            --signals out/daily.jsonl \
+            --positions data/state/positions.json \
+            --ledger-dir data/state/ledger \
+            --events-out "data/runs/daily/${{ steps.vars.outputs.asof }}.events.json" \
+            --default-qty 200 \
+            --run-url "${{ steps.vars.outputs.run_url }}"
+
+      - name: Compute report status
+        id: report_status
+        if: always()
+        run: |
+          STATUS=success
+          if [ "${{ steps.daily.outcome }}" != "success" ] || [ "${{ steps.update.outcome }}" != "success" ]; then
+            STATUS=failure
+          fi
+          echo "status=$STATUS" >> $GITHUB_OUTPUT
+
+      - name: Build daily report
+        id: report
+        if: always()
+        continue-on-error: true
+        run: |
+          python scripts/build_daily_report.py \
+            --asof "${{ steps.vars.outputs.asof }}" \
+            --signals out/daily.jsonl \
+            --events "data/runs/daily/${{ steps.vars.outputs.asof }}.events.json" \
+            --positions data/state/positions.json \
+            --company-cache data/master/company_names.json \
+            --report-out "data/reports/daily/${{ steps.vars.outputs.asof }}.md" \
+            --run-out "data/runs/daily/${{ steps.vars.outputs.asof }}.jsonl" \
+            --status "${{ steps.report_status.outputs.status }}" \
+            --run-url "${{ steps.vars.outputs.run_url }}"
+
+      - name: Prune old daily artifacts
+        if: always()
+        run: |
+          python scripts/prune_data.py --keep-days 90
+
+      - name: Commit daily data
+        if: always()
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git pull --rebase
+          git add data
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          git commit -m "chore: update daily data ${{ steps.vars.outputs.asof }}"
+          git push
+
+      - name: Send daily email
+        if: always()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: ${{ secrets.MAIL_SERVER }}
+          server_port: ${{ secrets.MAIL_PORT }}
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          subject: "JP Signals Daily ${{ steps.vars.outputs.asof }} (${{ steps.report_status.outputs.status }})"
+          to: ${{ secrets.MAIL_TO }}
+          from: ${{ secrets.MAIL_FROM }}
+          convert_markdown: true
+          body: file://data/reports/daily/${{ steps.vars.outputs.asof }}.md
+
+      - name: Fail when run had errors
+        if: always() && steps.report_status.outputs.status == 'failure'
+        run: exit 1
