@@ -1,14 +1,16 @@
 {
   "asof": "2026-01-04",
-  "run_url": "https://github.com/Shibayama-y/jpsignals/actions/runs/20680112490",
+  "run_url": "https://github.com/Shibayama-y/jpsignals/actions/runs/20685248557",
   "counts": {
     "processed": 272,
     "entry_signals": 0,
-    "exit_signals": 15,
+    "exit_signals": 0,
     "entries": 0,
     "exits": 0
   },
   "entries": [],
   "exits": [],
-  "notes": []
+  "notes": [
+    "skip: asof 2026-01-04 already applied (last 2026-01-04)"
+  ]
 }
