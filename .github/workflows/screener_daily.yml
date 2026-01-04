@@ -87,7 +87,15 @@ jobs:
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@users.noreply.github.com"
-          git pull --rebase
+          # Stash local changes (data) to allow rebase
+          if ! git diff --quiet -- data; then
+            git stash push --include-untracked -- data
+          fi
+          git pull --rebase || true
+          # Re-apply stash if it exists
+          if git stash list | grep -q "stash@{0}"; then
+            git stash pop || true
+          fi
           git add data
           if git diff --cached --quiet; then
             echo "No changes to commit."
